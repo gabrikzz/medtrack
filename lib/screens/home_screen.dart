@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// 🔥 ИМПОРТ ЭКРАНОВ
 import 'records_screen.dart';
 import 'tests_screen.dart';
 import 'profile_screen.dart';
@@ -61,10 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-////////////////////////////////////////////////////////
-/// 🟦 HOME CONTENT
-////////////////////////////////////////////////////////
 
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});

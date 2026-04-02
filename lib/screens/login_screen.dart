@@ -32,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
     checkUserLoggedIn();
   }
 
-  // ✅ Автовход (БЕЗ КРАША)
   Future<void> checkUserLoggedIn() async {
     final user = _auth.currentUser;
 
@@ -67,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 🔐 LOGIN
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -109,7 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => loading = false);
   }
 
-  // 🔑 FORGOT PASSWORD
   Future<void> resetPassword() async {
     if (emailController.text.isEmpty) {
       showError("Enter your email first");
@@ -128,7 +125,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 👆 BIOMETRICS (УЛУЧШЕНО)
 Future<void> biometricLogin() async {
   try {
     bool isAvailable = await auth.canCheckBiometrics;
@@ -151,7 +147,6 @@ Future<void> biometricLogin() async {
   }
 }
 
-  // ❌ Ошибки
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -161,7 +156,6 @@ Future<void> biometricLogin() async {
     );
   }
 
-  // ✅ Успех
   void showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -171,7 +165,6 @@ Future<void> biometricLogin() async {
     );
   }
 
-  // 🔍 Firebase ошибки
   String getMessageFromError(String code) {
     switch (code) {
       case 'user-not-found':

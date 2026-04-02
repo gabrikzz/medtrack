@@ -18,7 +18,6 @@ class SuccessScreen extends StatelessWidget {
 
             children: [
 
-              // ✅ Icon
               const Icon(
                 Icons.check_circle,
                 color: Colors.green,
@@ -48,7 +47,6 @@ class SuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // 🔥 Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

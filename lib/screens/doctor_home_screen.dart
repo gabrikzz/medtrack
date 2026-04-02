@@ -28,7 +28,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     loadRecentPatients();
   }
 
-  // 🔍 ПОИСК ПАЦИЕНТА
   Future<void> searchPatient() async {
 
     final idnp = idnpController.text.trim();
@@ -60,7 +59,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       patientId = result.docs.first.id;
     });
 
-    // 💾 СОХРАНЯЕМ В RECENT
     final doctorId = FirebaseAuth.instance.currentUser!.uid;
 
     await FirebaseFirestore.instance
@@ -77,7 +75,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     loadRecentPatients();
   }
 
-  // 📥 ЗАГРУЗКА RECENT
   Future<void> loadRecentPatients() async {
     final doctorId = FirebaseAuth.instance.currentUser!.uid;
 
@@ -99,7 +96,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     });
   }
 
-  // 📎 FILE PICKER
   Future<File?> pickFile() async {
     final result = await FilePicker.platform.pickFiles();
 
@@ -108,7 +104,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     return File(result.files.single.path!);
   }
 
-  // ☁️ UPLOAD
   Future<String?> uploadFile(File file) async {
     try {
       final ref = FirebaseStorage.instance
@@ -124,7 +119,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     }
   }
 
-  // 📄 ATTACH DOC
   Future<void> attachDocument(String type) async {
 
     if (patientId == null) {
@@ -187,7 +181,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
               const SizedBox(height: 20),
 
-              // 🔍 SEARCH
               Row(
                 children: [
                   Expanded(
@@ -230,7 +223,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
               const SizedBox(height: 20),
 
-              // 👤 ЕСЛИ НАЙДЕН ПАЦИЕНТ
               if (patient != null) ...[
 
                 _patientCard(),
@@ -253,7 +245,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 _docTile("Medication"),
               ],
 
-              // 📋 RECENT
               if (patient == null) ...[
 
                 const Text("Recent Patients",
@@ -270,7 +261,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  // 👤 CARD
   Widget _patientCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -297,7 +287,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  // 📋 RECENT TILE
   Widget _recentTile(Map<String, dynamic> p) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -320,7 +309,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  // 📄 DOC TILE
   Widget _docTile(String title) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),

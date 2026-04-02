@@ -29,7 +29,6 @@ class _RecordsScreenState extends State<RecordsScreen> {
       body: Column(
         children: [
 
-          // 🔽 FILTER
           SizedBox(
             height: 50,
             child: ListView(
@@ -44,7 +43,6 @@ class _RecordsScreenState extends State<RecordsScreen> {
             ),
           ),
 
-          // 📄 LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance

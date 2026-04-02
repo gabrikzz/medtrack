@@ -82,7 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ? "Unknown"
               : bloodTypeController.text,
 
-          role: "user", // 🔥 ВСЕГДА USER
+          role: "user", 
         );
 
         await firestoreService.createUser(newUser);
