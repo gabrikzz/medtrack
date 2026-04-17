@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
+
+// 🔥 FIX: правильный фильтр (НЕ зависит от языка)
+enum FilterType { all, diagnosis, medication }
 
 class RecordsScreen extends StatefulWidget {
   const RecordsScreen({super.key});
@@ -11,95 +15,117 @@ class RecordsScreen extends StatefulWidget {
 }
 
 class _RecordsScreenState extends State<RecordsScreen> {
-
-  String selectedFilter = "All";
+  // 🔥 FIX
+  FilterType selectedFilter = FilterType.all;
 
   @override
   Widget build(BuildContext context) {
-
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final loc = AppLocalizations.of(context)!;
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
-        title: const Text("Medical Records"),
+        title: Text(loc.records),
+        centerTitle: true,
       ),
-
       body: Column(
         children: [
 
-          SizedBox(
-            height: 50,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+          const SizedBox(height: 10),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
               children: [
-                _filterChip("All"),
-                _filterChip("Diagnosis"),
-                _filterChip("Test Result"),
-                _filterChip("Medication"),
+                _filterChip(loc.all, FilterType.all),
+                _filterChip(loc.diagnosis, FilterType.diagnosis),
+                _filterChip(loc.medication, FilterType.medication),
               ],
             ),
           ),
+
+          const SizedBox(height: 10),
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('documents')
-                  .where('patientId', isEqualTo: uid)
-                  .orderBy('createdAt', descending: true)
+                  .where('patientId', isEqualTo: user?.uid)
                   .snapshots(),
-
               builder: (context, snapshot) {
 
-                if (!snapshot.hasData) {
+                // 🔥 FIX: правильная проверка loading
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs;
-
-                if (docs.isEmpty) {
-                  return const Center(child: Text("No documents yet"));
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(child: Text(loc.noRecords));
                 }
 
-                final filteredDocs = docs.where((doc) {
-                  if (selectedFilter == "All") return true;
-                  return doc['type'] == selectedFilter;
+                final docs = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final type = data['type'] ?? '';
+
+                  // 🔥 FIX: фильтр НЕ зависит от языка
+                  if (selectedFilter == FilterType.all) return true;
+                  if (selectedFilter == FilterType.diagnosis && type == "Diagnosis") return true;
+                  if (selectedFilter == FilterType.medication && type == "Medication") return true;
+
+                  return false;
                 }).toList();
 
+                if (docs.isEmpty) {
+                  return Center(child: Text(loc.noRecords));
+                }
+
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filteredDocs.length,
+                  itemCount: docs.length,
                   itemBuilder: (context, index) {
 
-                    final doc = filteredDocs[index];
-                    final date = doc['createdAt']?.toDate();
+                    final data = docs[index].data() as Map<String, dynamic>;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                    // 🔥 FIX: безопасный timestamp
+                    final ts = data['createdAt'] as Timestamp?;
+
+                    if (ts == null) {
+                      return const SizedBox(); // не крашится
+                    }
+
+                    final date = ts.toDate();
+
+                    return Card(
                       child: ListTile(
-                        leading: Icon(_getIcon(doc['type'])),
-                        title: Text(doc['type']),
-                        subtitle: Text(
-                          date != null
-                              ? "${date.day}.${date.month}.${date.year}"
-                              : "No date",
+                        title: Text(
+                          data['title'] ??
+                              _translateType(data['type'] ?? '', loc),
                         ),
-                        trailing: const Icon(Icons.open_in_new),
+                        subtitle: Text(
+                          "${date.day}.${date.month}.${date.year}",
+                        ),
 
                         onTap: () async {
-                          final url = doc['fileUrl'];
+                          final url = data['fileUrl'];
 
                           if (url != null) {
                             final uri = Uri.parse(url);
                             if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri);
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
                             }
+                          } else {
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: Text(data['title'] ?? "Medication"),
+                                content: Text(
+                                  data['dosage'] ?? "Medication added by doctor",
+                                ),
+                              ),
+                            );
                           }
                         },
                       ),
@@ -114,29 +140,28 @@ class _RecordsScreenState extends State<RecordsScreen> {
     );
   }
 
-  Widget _filterChip(String label) {
+  // 🔥 FIX: правильный chip
+  Widget _filterChip(String label, FilterType type) {
     return Padding(
-      padding: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.only(right: 6),
       child: ChoiceChip(
         label: Text(label),
-        selected: selectedFilter == label,
+        selected: selectedFilter == type,
         onSelected: (_) {
-          setState(() => selectedFilter = label);
+          setState(() => selectedFilter = type);
         },
       ),
     );
   }
 
-  IconData _getIcon(String type) {
+  String _translateType(String type, AppLocalizations loc) {
     switch (type) {
       case "Diagnosis":
-        return Icons.description;
-      case "Test Result":
-        return Icons.science;
+        return loc.diagnosis;
       case "Medication":
-        return Icons.medication;
+        return loc.medication;
       default:
-        return Icons.insert_drive_file;
+        return type;
     }
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
+
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
@@ -8,68 +10,119 @@ class DoctorRegisterScreen extends StatefulWidget {
   const DoctorRegisterScreen({super.key});
 
   @override
-  State<DoctorRegisterScreen> createState() => _DoctorRegisterScreenState();
+  State<DoctorRegisterScreen> createState() =>
+      _DoctorRegisterScreenState();
 }
 
 class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
   final specController = TextEditingController();
   final licenseController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final locationController = TextEditingController();
 
-  final _formKey = GlobalKey<FormState>();
+  String selectedSex = "Male";
 
   final AuthService authService = AuthService();
   final FirestoreService firestoreService = FirestoreService();
 
   bool loading = false;
+  bool isPasswordHidden = true;
 
   Future<void> registerDoctor() async {
+    final loc = AppLocalizations.of(context)!;
 
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => loading = true);
 
     try {
-
       final user = await authService.register(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      if (user != null) {
-
-        final newUser = UserModel(
-          uid: user.uid,
-          name: nameController.text,
-          email: emailController.text,
-          dob: "", // врачу не обязательно
-          idnp: licenseController.text, // можно использовать как ID
-          bloodType: "N/A",
-          role: "doctor", // 🔥 ВАЖНО
-        );
-
-        await firestoreService.createUser(newUser);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Doctor account created")),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const SuccessScreen()),
-        );
+      if (user == null) {
+        showError(loc.registerFailed);
+        return;
       }
 
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+      final confirm = await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(loc.confirmData),
+          content: Text(
+            "${loc.fullName}: ${nameController.text}\n"
+            "${loc.specialization}: ${specController.text}\n"
+            "${loc.license}: ${licenseController.text}\n"
+            "${loc.email}: ${emailController.text}\n"
+            "${loc.sex}: $selectedSex\n"
+            "${loc.location}: ${locationController.text}\n\n"
+            "${loc.isCorrect}",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(loc.edit),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(loc.yes),
+            ),
+          ],
+        ),
       );
+
+      if (confirm != true) {
+        if (mounted) setState(() => loading = false);
+        return;
+      }
+
+      final newUser = UserModel(
+        uid: user.uid,
+        fullName: nameController.text.trim(),
+        email: emailController.text.trim(),
+        birthDate: "",
+        idnp: licenseController.text.trim(),
+        bloodType: "N/A",
+        role: "doctor",
+        sex: selectedSex,
+        location: locationController.text.trim(),
+      );
+
+      await firestoreService.createUser(newUser);
+
+      if (!mounted) return;
+
+      showSuccess(loc.doctorCreated);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SuccessScreen()),
+      );
+
+    } catch (e) {
+      showError(loc.registerFailed);
     }
 
-    setState(() => loading = false);
+    if (mounted) setState(() => loading = false);
+  }
+
+  void showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(backgroundColor: Colors.red, content: Text(message)),
+    );
+  }
+
+  void showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(backgroundColor: Colors.green, content: Text(message)),
+    );
   }
 
   InputDecoration fieldStyle(String hint) {
@@ -77,6 +130,8 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
       hintText: hint,
       filled: true,
       fillColor: Colors.grey[100],
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -91,15 +146,20 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
     licenseController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    locationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        title: Text(loc.doctorRegistration,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
 
@@ -122,81 +182,111 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
 
               const SizedBox(height: 20),
 
-              const Text(
-                "Doctor Registration",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const Text(
-                "Create your professional account",
-                style: TextStyle(color: Colors.grey),
+              Text(
+                loc.professionalAccount,
+                style: const TextStyle(color: Colors.grey),
               ),
 
               const SizedBox(height: 30),
 
               TextFormField(
                 controller: nameController,
-                decoration: fieldStyle("Dr. Full Name"),
-                validator: (v) => v!.isEmpty ? "Enter name" : null,
+                decoration: fieldStyle(loc.doctorName),
+                validator: (v) =>
+                    v == null || v.isEmpty ? loc.enterName : null,
               ),
 
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: specController,
-                decoration: fieldStyle("Specialization"),
-                validator: (v) => v!.isEmpty ? "Enter specialization" : null,
+                decoration: fieldStyle(loc.specialization),
+                validator: (v) =>
+                    v == null || v.isEmpty ? loc.enterSpecialization : null,
               ),
 
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: licenseController,
-                decoration: fieldStyle("License number"),
-                validator: (v) => v!.isEmpty ? "Enter license" : null,
+                decoration: fieldStyle(loc.license),
+                validator: (v) =>
+                    v == null || v.isEmpty ? loc.enterLicense : null,
               ),
 
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: emailController,
-                decoration: fieldStyle("Email"),
+                decoration: fieldStyle(loc.email),
                 validator: (v) =>
-                    v!.contains("@") ? null : "Invalid email",
+                    v != null && v.contains("@") ? null : loc.invalidEmail,
               ),
 
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: passwordController,
-                obscureText: true,
-                decoration: fieldStyle("Password"),
+                obscureText: isPasswordHidden,
+                decoration: fieldStyle(loc.password).copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordHidden
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isPasswordHidden = !isPasswordHidden;
+                      });
+                    },
+                  ),
+                ),
                 validator: (v) =>
-                    v!.length < 6 ? "Min 6 characters" : null,
+                    v != null && v.length >= 6 ? null : loc.passwordMin,
+              ),
+
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                value: selectedSex,
+                decoration: fieldStyle(loc.sex),
+                items: ["Male", "Female"]
+                    .map((e) =>
+                        DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedSex = value!;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: locationController,
+                decoration: fieldStyle(loc.location),
+                validator: (v) =>
+                    v == null || v.isEmpty ? loc.enterLocation : null,
               ),
 
               const SizedBox(height: 30),
 
               loading
                   ? const Center(child: CircularProgressIndicator())
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.all(18),
-                          backgroundColor: const Color(0xFF62B97C),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                  : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(18),
+                        backgroundColor: const Color(0xFF62B97C),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        onPressed: registerDoctor,
-                        child: const Text(
-                          "Create Doctor Account",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                      ),
+                      onPressed: registerDoctor,
+                      child: Text(
+                        loc.createDoctorAccount,
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
             ],

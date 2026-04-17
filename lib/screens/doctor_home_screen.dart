@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
+import 'package:medtrack/l10n/app_localizations.dart';
+import 'doctor_profile_screen.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -13,53 +14,105 @@ class DoctorHomeScreen extends StatefulWidget {
 }
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
+  int selectedIndex = 0;
 
   final idnpController = TextEditingController();
 
   Map<String, dynamic>? patient;
   String? patientId;
   bool loading = false;
+  bool patientSelected = false;
 
-  List<Map<String, dynamic>> recentPatients = [];
+  List<Map<String, dynamic>> todayPatients = [];
+  List<Map<String, dynamic>> yesterdayPatients = [];
+
+  String doctorName = "";
 
   @override
   void initState() {
     super.initState();
-    loadRecentPatients();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadDoctorData();
+      loadRecentPatients();
+    });
   }
 
-  Future<void> searchPatient() async {
+  // 👨‍⚕️ LOAD DOCTOR
+  Future<void> loadDoctorData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    setState(() {
+      doctorName = doc.data()?['fullName'] ?? "Doctor";
+    });
+  }
+
+  Widget _getScreen(AppLocalizations loc) {
+    return selectedIndex == 1
+        ? const DoctorProfileScreen()
+        : _buildHome(loc);
+  }
+
+  // 🔍 SEARCH PATIENT
+  Future<void> searchPatient() async {
+    final loc = AppLocalizations.of(context)!;
     final idnp = idnpController.text.trim();
 
     if (idnp.length != 13) {
-      showError("IDNP must be 13 digits");
+      showError(loc.idnpLength);
       return;
     }
 
     setState(() => loading = true);
 
-    final result = await FirebaseFirestore.instance
-        .collection('users')
-        .where('idnp', isEqualTo: idnp)
-        .where('role', isEqualTo: 'user')
-        .get();
+    try {
+      final result = await FirebaseFirestore.instance
+          .collection('users')
+          .where('idnp', isEqualTo: idnp)
+          .where('role', isEqualTo: 'user')
+          .get();
 
-    setState(() => loading = false);
+      if (result.docs.isEmpty) {
+        showError(loc.patientNotFound);
+        setState(() => loading = false);
+        return;
+      }
 
-    if (result.docs.isEmpty) {
-      showError("Patient not found");
-      return;
+      final doc = result.docs.first;
+
+      setState(() {
+        patient = doc.data();
+        patientId = doc.id;
+        patientSelected = false;
+      });
+
+    } catch (e) {
+      showError("Search failed");
     }
 
-    final data = result.docs.first.data();
+    setState(() => loading = false);
+  }
 
+  // 🔙 EXIT PATIENT MODE
+  void exitPatientMode() {
     setState(() {
-      patient = data;
-      patientId = result.docs.first.id;
+      patient = null;
+      patientId = null;
+      patientSelected = false;
+      idnpController.clear();
     });
+  }
 
-    final doctorId = FirebaseAuth.instance.currentUser!.uid;
+  // 📌 SAVE RECENT
+  Future<void> saveToRecentPatients() async {
+    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    if (doctorId == null || patientId == null || patient == null) return;
 
     await FirebaseFirestore.instance
         .collection('doctors')
@@ -67,195 +120,336 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         .collection('recent_patients')
         .doc(patientId)
         .set({
-      'name': data['name'],
-      'idnp': data['idnp'],
+      'name': patient!['fullName'],
+      'idnp': patient!['idnp'],
       'lastVisit': FieldValue.serverTimestamp(),
     });
 
     loadRecentPatients();
   }
 
+  // 📊 LOAD RECENT
   Future<void> loadRecentPatients() async {
-    final doctorId = FirebaseAuth.instance.currentUser!.uid;
+    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    if (doctorId == null) return;
 
     final snapshot = await FirebaseFirestore.instance
         .collection('doctors')
         .doc(doctorId)
         .collection('recent_patients')
         .orderBy('lastVisit', descending: true)
-        .limit(5)
         .get();
 
+    final now = DateTime.now();
+    final yesterdayDate = now.subtract(const Duration(days: 1));
+
+    List<Map<String, dynamic>> today = [];
+    List<Map<String, dynamic>> yesterday = [];
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final ts = data['lastVisit'] as Timestamp?;
+      if (ts == null) continue;
+
+      final date = ts.toDate();
+
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        today.add({...data, 'id': doc.id});
+      } else if (date.year == yesterdayDate.year &&
+          date.month == yesterdayDate.month &&
+          date.day == yesterdayDate.day) {
+        yesterday.add({...data, 'id': doc.id});
+      }
+    }
+
     setState(() {
-      recentPatients = snapshot.docs.map((doc) {
-        return {
-          ...doc.data(),
-          'id': doc.id,
-        };
-      }).toList();
+      todayPatients = today;
+      yesterdayPatients = yesterday;
     });
   }
 
-  Future<File?> pickFile() async {
-    final result = await FilePicker.platform.pickFiles();
+  // 📄 ATTACH DOCUMENT
+  Future<void> attachDocument(String type) async {
+    final loc = AppLocalizations.of(context)!;
 
-    if (result == null) return null;
-
-    return File(result.files.single.path!);
-  }
-
-  Future<String?> uploadFile(File file) async {
     try {
+      final result = await FilePicker.platform.pickFiles(withData: true);
+      if (result == null) return;
+
+      final file = result.files.first;
+
       final ref = FirebaseStorage.instance
           .ref()
-          .child("documents/${DateTime.now().millisecondsSinceEpoch}");
+          .child("documents/${patientId}_${DateTime.now().millisecondsSinceEpoch}");
 
-      await ref.putFile(file);
+      await ref.putData(file.bytes!);
+      final url = await ref.getDownloadURL();
 
-      return await ref.getDownloadURL();
+      await FirebaseFirestore.instance.collection('documents').add({
+        'patientId': patientId,
+        'type': type,
+        'fileUrl': url,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await saveToRecentPatients();
+      showSuccess(loc.success);
+
     } catch (e) {
       showError("Upload failed");
-      return null;
     }
   }
 
-  Future<void> attachDocument(String type) async {
+  // 💊 MEDICATION OPTIONS
+  void showAddMedicationDialog() {
+    final loc = AppLocalizations.of(context)!;
 
-    if (patientId == null) {
-      showError("Search patient first");
-      return;
-    }
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(loc.addMedication,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
 
-    final file = await pickFile();
-    if (file == null) return;
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.green),
+              title: Text(loc.writeManually),
+              onTap: () {
+                Navigator.pop(context);
+                _showManualMedicationSheet();
+              },
+            ),
 
-    final url = await uploadFile(file);
-    if (url == null) return;
-
-    final doctorId = FirebaseAuth.instance.currentUser!.uid;
-
-    await FirebaseFirestore.instance.collection('documents').add({
-      'patientId': patientId,
-      'doctorId': doctorId,
-      'type': type,
-      'fileUrl': url,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    showSuccess("$type uploaded successfully");
-  }
-
-  void showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Colors.red, content: Text(msg)),
+            ListTile(
+              leading: const Icon(Icons.attach_file, color: Colors.green),
+              title: Text(loc.attachDocument),
+              onTap: () {
+                Navigator.pop(context);
+                _attachMedicationFile();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Colors.green, content: Text(msg)),
-    );
-  }
+  // ✍️ MANUAL MEDICATION
+  void _showManualMedicationSheet() {
+    final loc = AppLocalizations.of(context)!;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
+    final name = TextEditingController();
+    final dosage = TextEditingController();
 
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    bool isSaving = false;
 
-              const Text("Doctor Portal",
-                  style: TextStyle(color: Colors.grey)),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              left: 20,
+              right: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
 
-              const SizedBox(height: 4),
-
-              const Text(
-                "Dr. Maria Ionescu",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: idnpController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: "Enter patient IDNP...",
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: loading ? null : searchPatient,
-                    child: loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text("Search"),
-                  )
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              if (patient != null) ...[
-
-                _patientCard(),
+                TextField(
+                  controller: name,
+                  decoration: InputDecoration(labelText: loc.medicationName),
+                ),
 
                 const SizedBox(height: 10),
 
-                OutlinedButton(
-                  onPressed: () {},
-                  child: const Text("+ Attach New Document"),
+                TextField(
+                  controller: dosage,
+                  decoration: InputDecoration(labelText: loc.dosage),
                 ),
 
                 const SizedBox(height: 20),
 
-                const Text("Choose Document Type"),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
 
+                          if (name.text.trim().isEmpty) {
+                            showError("Enter medication name");
+                            return;
+                          }
+
+                          setModalState(() => isSaving = true);
+
+                          try {
+                            await FirebaseFirestore.instance.collection('documents').add({
+                              'patientId': patientId,
+                              'type': 'Medication',
+                              'title': name.text.trim(),
+                              'dosage': dosage.text.trim(),
+                              'createdAt': FieldValue.serverTimestamp(),
+                            });
+
+                            await saveToRecentPatients();
+
+                            Navigator.pop(context);
+                            showSuccess(loc.success);
+
+                          } catch (e) {
+                            showError("Save failed");
+                          }
+
+                          setModalState(() => isSaving = false);
+                        },
+                  child: isSaving
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(loc.save),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 📎 FILE MEDICATION
+  Future<void> _attachMedicationFile() async {
+    final loc = AppLocalizations.of(context)!;
+
+    try {
+      final result = await FilePicker.platform.pickFiles(withData: true);
+      if (result == null) return;
+
+      final file = result.files.first;
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child("medications/${patientId}_${DateTime.now().millisecondsSinceEpoch}");
+
+      await ref.putData(file.bytes!);
+
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('documents').add({
+        'patientId': patientId,
+        'type': 'Medication',
+        'fileUrl': url,
+        'fileName': file.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await saveToRecentPatients();
+      showSuccess(loc.success);
+
+    } catch (e) {
+      showError("Upload failed");
+    }
+  }
+
+  // UI (НЕ ТРОГАЛ)
+  Widget _buildHome(AppLocalizations loc) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            Text(loc.doctorPortal, style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 4),
+
+            Text(doctorName,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+
+                if (patient != null)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: exitPatientMode,
+                  ),
+
+                Expanded(
+                  child: TextField(
+                    controller: idnpController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: loc.enterIdnp,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 10),
+
+                ElevatedButton(
+                  onPressed: loading ? null : searchPatient,
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(loc.search),
+                )
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            if (patient != null) ...[
+              GestureDetector(
+                onTap: () => setState(() => patientSelected = true),
+                child: _patientCard(),
+              ),
+
+              if (patientSelected) ...[
                 const SizedBox(height: 10),
 
-                _docTile("Diagnosis"),
-                _docTile("Test Result"),
-                _docTile("Medication"),
-              ],
+                ElevatedButton(
+                  onPressed: () => attachDocument("Diagnosis"),
+                  child: Text(loc.diagnosis),
+                ),
 
-              if (patient == null) ...[
+                ElevatedButton(
+                  onPressed: () => attachDocument("Test"),
+                  child: Text(loc.testResult),
+                ),
 
-                const Text("Recent Patients",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-
-                const SizedBox(height: 10),
-
-                ...recentPatients.map((p) => _recentTile(p)),
-              ],
+                ElevatedButton(
+                  onPressed: showAddMedicationDialog,
+                  child: Text(loc.medication),
+                ),
+              ]
             ],
-          ),
+
+            if (patient == null) ...[
+              Text(loc.today, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ...todayPatients.map((p) => _recentTile(p)),
+
+              const SizedBox(height: 10),
+
+              Text(loc.yesterday, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ...yesterdayPatients.map((p) => _recentTile(p)),
+            ]
+          ],
         ),
       ),
     );
@@ -275,11 +469,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                patient!['name'] ?? "Unknown",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text("IDNP: ${patient!['idnp'] ?? "N/A"}"),
+              Text(patient!['fullName']),
+              Text("IDNP: ${patient!['idnp']}"),
             ],
           ),
         ],
@@ -288,38 +479,44 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   Widget _recentTile(Map<String, dynamic> p) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.person)),
-        title: Text(p['name'] ?? ""),
-        subtitle: Text("IDNP: ${p['idnp']}"),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          setState(() {
-            patient = p;
-            patientId = p['id'];
-          });
-        },
-      ),
+    return ListTile(
+      title: Text(p['name']),
+      subtitle: Text("IDNP: ${p['idnp']}"),
+      onTap: () {
+        setState(() {
+          patient = p;
+          patientId = p['id'];
+          patientSelected = true;
+        });
+      },
     );
   }
 
-  Widget _docTile(String title) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
-        title: Text(title),
-        trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: () => attachDocument(title),
+  void showError(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text(msg)),
+      );
+
+  void showSuccess(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.green, content: Text(msg)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: _getScreen(loc),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: (i) => setState(() => selectedIndex = i),
+        selectedItemColor: Colors.blue,
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: loc.home),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: loc.profile),
+        ],
       ),
     );
   }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
+import 'package:medtrack/main.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 import 'doctor_register_screen.dart';
@@ -8,12 +10,23 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             children: [
+
+              // 🔥 LANGUAGE BUTTON (TOP RIGHT)
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.language),
+                  onPressed: () => _showLanguageDialog(context),
+                ),
+              ),
 
               const Spacer(),
 
@@ -24,9 +37,9 @@ class WelcomeScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              const Text(
-                "MedTrack",
-                style: TextStyle(
+              Text(
+                loc.appName,
+                style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
                 ),
@@ -34,10 +47,10 @@ class WelcomeScreen extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              const Text(
-                "Your medical records. Anytime.\nAnywhere.",
+              Text(
+                loc.appSlogan,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
                 ),
@@ -45,6 +58,7 @@ class WelcomeScreen extends StatelessWidget {
 
               const SizedBox(height: 80),
 
+              // 🔹 SIGN IN
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -63,16 +77,19 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text(
-                    "Sign In",
-                    style: TextStyle(fontSize: 16,
-                    color: Colors.white,)
+                  child: Text(
+                    loc.signIn,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
 
               const SizedBox(height: 16),
 
+              // 🔹 CREATE ACCOUNT
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -91,19 +108,20 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text(
-                    "Create Account",
-                    style: TextStyle(fontSize: 16),
+                  child: Text(
+                    loc.createAccount,
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
               ),
 
               const SizedBox(height: 30),
 
-              const Text("or"),
+              Text(loc.or),
 
               const SizedBox(height: 20),
 
+              // 🔹 DOCTOR REGISTER
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -122,9 +140,9 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text(
-                    "Register as a Doctor",
-                    style: TextStyle(
+                  child: Text(
+                    loc.registerDoctor,
+                    style: const TextStyle(
                       fontSize: 16,
                       color: Colors.green,
                     ),
@@ -135,6 +153,42 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 LANGUAGE DIALOG (GLOBAL CHANGE)
+  void _showLanguageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Choose language"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text("English"),
+              onTap: () {
+                MedTrackApp.setLocale(context, const Locale('en'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text("Русский"),
+              onTap: () {
+                MedTrackApp.setLocale(context, const Locale('ru'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text("Română"),
+              onTap: () {
+                MedTrackApp.setLocale(context, const Locale('ro'));
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ),
       ),
     );

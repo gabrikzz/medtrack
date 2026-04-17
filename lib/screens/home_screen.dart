@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
 
 import 'records_screen.dart';
 import 'tests_screen.dart';
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
 
     final screens = [
       const HomeContent(),
@@ -28,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: Container(
@@ -36,25 +37,17 @@ class _HomeScreenState extends State<HomeScreen> {
           child: screens[selectedIndex],
         ),
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
-        onTap: (index) {
-          setState(() => selectedIndex = index);
-        },
+        onTap: (index) => setState(() => selectedIndex = index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
-
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: "Home"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.description_outlined), label: "Records"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.science_outlined), label: "Tests"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: "Profile"),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home_rounded), label: loc.home),
+          BottomNavigationBarItem(icon: const Icon(Icons.description_outlined), label: loc.records),
+          BottomNavigationBarItem(icon: const Icon(Icons.science_outlined), label: loc.tests),
+          BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: loc.profile),
         ],
       ),
     );
@@ -66,50 +59,45 @@ class HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final user = FirebaseAuth.instance.currentUser;
 
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    // 🔥 FIX: защита если user == null
+    if (user == null) {
+      return Center(child: Text(loc.notLoggedIn));
+    }
+
+    final uid = user.uid;
 
     return SafeArea(
       child: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get(),
-
+        future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
         builder: (context, snapshot) {
 
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text("User data not found"));
+            return Center(child: Text(loc.userNotFound));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
+          String name = data['fullName'] ?? loc.user;
 
           return Padding(
             padding: const EdgeInsets.all(20),
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
 
-                Text(
-                  "Good morning",
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-
+                Text(loc.goodMorning, style: TextStyle(color: Colors.grey[600])),
                 const SizedBox(height: 4),
 
-                Text(
-                  data['name'] ?? "User",
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
 
                 const SizedBox(height: 20),
 
-                // 🟦 USER CARD
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -122,29 +110,19 @@ class HomeContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
 
-                      const Text(
-                        "PATIENT",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-
+                      Text(loc.patient, style: const TextStyle(color: Colors.white70)),
                       const SizedBox(height: 8),
 
-                      Text(
-                        data['name'] ?? "Unknown",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
 
                       const SizedBox(height: 16),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _info("AGE", data['age']?.toString() ?? "N/A"),
-                          _info("BLOOD", data['bloodType'] ?? "-"),
-                          _info("IDNP", data['idnp'] ?? "-"),
+                          _info(loc.age, data['age']?.toString() ?? "-"),
+                          _info(loc.blood, data['bloodType'] ?? "-"),
+                          _info(loc.idnp, data['idnp'] ?? "-"),
                         ],
                       )
                     ],
@@ -153,33 +131,25 @@ class HomeContent extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                // ⚡ QUICK ACTIONS
-                const Text(
-                  "Quick Actions",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-
+                Text(loc.quickActions, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-
                     _actionCard(
                       icon: Icons.description_outlined,
-                      title: "Records",
+                      title: loc.records,
                       onTap: () => _open(context, const RecordsScreen()),
                     ),
-
                     _actionCard(
                       icon: Icons.science_outlined,
-                      title: "Tests",
+                      title: loc.tests,
                       onTap: () => _open(context, const TestsScreen()),
                     ),
-
                     _actionCard(
                       icon: Icons.person_outline,
-                      title: "Profile",
+                      title: loc.profile,
                       onTap: () => _open(context, const ProfileScreen()),
                     ),
                   ],
@@ -187,12 +157,7 @@ class HomeContent extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                // 📋 RECENT ACTIVITY
-                const Text(
-                  "Recent Activity",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-
+                Text(loc.recentActivity, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
 
                 Expanded(
@@ -203,26 +168,32 @@ class HomeContent extends StatelessWidget {
                         .orderBy('createdAt', descending: true)
                         .limit(5)
                         .snapshots(),
-
                     builder: (context, snapshot) {
 
-                      if (!snapshot.hasData) {
-                        return const Center(
-                            child: CircularProgressIndicator());
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Text(loc.noActivity);
                       }
 
                       final docs = snapshot.data!.docs;
-
-                      if (docs.isEmpty) {
-                        return const Text("No activity yet");
-                      }
 
                       return ListView.builder(
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
 
-                          final doc = docs[index];
-                          final date = doc['createdAt']?.toDate();
+                          final data = docs[index].data() as Map<String, dynamic>;
+
+                          // 🔥 FIX: безопасный timestamp
+                          final ts = data['createdAt'] as Timestamp?;
+                          if (ts == null) {
+                            return const SizedBox();
+                          }
+
+                          final date = ts.toDate();
+                          final type = data['type'] ?? "";
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
@@ -231,12 +202,10 @@ class HomeContent extends StatelessWidget {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: ListTile(
-                              leading: Icon(_getIcon(doc['type'])),
-                              title: Text(doc['type'] ?? "Unknown"),
+                              leading: Icon(_getIcon(type)),
+                              title: Text(_getTitle(type, loc)),
                               subtitle: Text(
-                                date != null
-                                    ? "${date.day}.${date.month}.${date.year}"
-                                    : "No date",
+                                "${date.day}.${date.month}.${date.year}",
                               ),
                             ),
                           );
@@ -253,16 +222,40 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  // 🔹 OPEN SCREEN
-  void _open(BuildContext context, Widget screen) {
+  static String _getTitle(String type, AppLocalizations loc) {
+    switch (type) {
+      case "Diagnosis":
+        return loc.activityDiagnosis;
+      case "Test":
+        return loc.activityTest;
+      case "Medication":
+        return loc.activityMedication;
+      default:
+        return loc.activityFile;
+    }
+  }
+
+  static IconData _getIcon(String type) {
+    switch (type) {
+      case "Diagnosis":
+        return Icons.description;
+      case "Test":
+        return Icons.science;
+      case "Medication":
+        return Icons.medication;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  static void _open(BuildContext context, Widget screen) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => screen),
     );
   }
 
-  // 🔹 INFO WIDGET
-  Widget _info(String title, String value) {
+  static Widget _info(String title, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,8 +266,7 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  // 🔹 ACTION CARD
-  Widget _actionCard({
+  static Widget _actionCard({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
@@ -292,28 +284,10 @@ class HomeContent extends StatelessWidget {
           children: [
             Icon(icon, size: 28, color: Colors.teal),
             const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(title, textAlign: TextAlign.center),
           ],
         ),
       ),
     );
-  }
-
-  // 🔹 ICON LOGIC
-  IconData _getIcon(String type) {
-    switch (type) {
-      case "Diagnosis":
-        return Icons.description;
-      case "Test Result":
-        return Icons.science;
-      case "Medication":
-        return Icons.medication;
-      default:
-        return Icons.insert_drive_file;
-    }
   }
 }

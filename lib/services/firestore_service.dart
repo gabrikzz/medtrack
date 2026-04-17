@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../models/test_model.dart';
 
 class FirestoreService {
 
@@ -13,5 +14,17 @@ class FirestoreService {
         .set(user.toMap());
 
   }
+  
+  Future<List<TestModel>> getTests(String userId) async {
+  final snapshot = await _db
+      .collection('users')
+      .doc(userId)
+      .collection('tests')
+      .get();
+
+  return snapshot.docs
+      .map((doc) => TestModel.fromFirestore(doc.data(), doc.id))
+      .toList();
+}
 
 }

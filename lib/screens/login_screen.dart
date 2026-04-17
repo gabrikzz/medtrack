@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
 
 import '../screens/home_screen.dart';
 import '../screens/doctor_home_screen.dart';
@@ -26,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isPasswordHidden = true;
   bool loading = false;
 
+  // 🔥 NEW
+  bool emailSent = false;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> checkUserLoggedIn() async {
+    final loc = AppLocalizations.of(context)!;
     final user = _auth.currentUser;
 
     if (user != null) {
@@ -46,27 +52,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final role = doc.data()?['role'] ?? "user";
 
-        Future.microtask(() {
-          if (role == "doctor") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const DoctorHomeScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
-          }
-        });
+        if (!mounted) return;
+
+        if (role == "doctor") {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DoctorHomeScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
 
       } catch (e) {
-        showError("Failed to load user data");
+        showError(loc.errorLoadUser);
       }
     }
   }
 
   Future<void> login() async {
+    final loc = AppLocalizations.of(context)!;
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => loading = true);
@@ -77,39 +85,96 @@ class _LoginScreenState extends State<LoginScreen> {
         password: passwordController.text.trim(),
       );
 
-      final user = credential.user!;
+      final user = credential.user;
 
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      final role = doc.data()?['role'] ?? "user";
-
-      if (role == "doctor") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DoctorHomeScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+      if (user == null) {
+        showError(loc.loginFailed);
+        return;
       }
 
+      await _handleUserAfterLogin(user);
+
     } on FirebaseAuthException catch (e) {
-      showError(getMessageFromError(e.code));
+      showError(getMessageFromError(e.code, loc));
     } catch (e) {
-      showError("Something went wrong");
+      showError(loc.somethingWentWrong);
     }
 
-    setState(() => loading = false);
+    if (mounted) setState(() => loading = false);
   }
 
+  Future<void> signInWithGoogle() async {
+    final loc = AppLocalizations.of(context)!;
+
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final user = userCredential.user;
+      if (user == null) return;
+
+      final userDoc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      final doc = await userDoc.get();
+
+      if (!doc.exists) {
+        await userDoc.set({
+          'fullName': user.displayName ?? "User",
+          'email': user.email,
+          'role': 'user',
+        });
+      }
+
+      await _handleUserAfterLogin(user);
+
+    } catch (e) {
+      showError(loc.somethingWentWrong);
+    }
+  }
+
+  Future<void> _handleUserAfterLogin(User user) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final role = doc.data()?['role'] ?? "user";
+
+    if (!mounted) return;
+
+    if (role == "doctor") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DoctorHomeScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    }
+  }
+
+  // 🔥 UPDATED RESET PASSWORD
   Future<void> resetPassword() async {
+    final loc = AppLocalizations.of(context)!;
+
     if (emailController.text.isEmpty) {
-      showError("Enter your email first");
+      showError(loc.enterEmailFirst);
       return;
     }
 
@@ -118,24 +183,69 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
       );
 
-      showSuccess("Password reset email sent");
+      setState(() {
+        emailSent = true;
+      });
+
+      showSuccess(loc.resetEmailSent);
 
     } catch (e) {
-      showError("Failed to send email");
+      showError(loc.resetEmailFailed);
     }
   }
 
-Future<void> biometricLogin() async {
-  try {
-    bool isAvailable = await auth.canCheckBiometrics;
+  // 🔥 RESEND EMAIL
+  Future<void> resendEmail() async {
+    final loc = AppLocalizations.of(context)!;
 
-    if (!isAvailable) {
-      showError("Biometric not available");
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: emailController.text.trim(),
+      );
+
+      showSuccess(loc.resetEmailSent);
+
+    } catch (e) {
+      showError(loc.resetEmailFailed);
+    }
+  }
+
+  Future<void> biometricLogin() async {
+  final loc = AppLocalizations.of(context)!;
+
+  try {
+    // 🔥 Проверка устройства
+    final canCheck = await auth.canCheckBiometrics;
+    final isSupported = await auth.isDeviceSupported();
+
+    if (!canCheck || !isSupported) {
+      showError(loc.biometricNotAvailable);
       return;
     }
 
-    bool authenticated = await auth.authenticate(
-      localizedReason: "Scan fingerprint to login",
+    // 🔥 Проверка есть ли методы (FaceID / Fingerprint)
+    final availableBiometrics = await auth.getAvailableBiometrics();
+
+    if (availableBiometrics.isEmpty) {
+      showError(loc.biometricNotAvailable);
+      return;
+    }
+
+    // 🔥 Проверка есть ли пользователь
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      showError(loc.loginFirst);
+      return;
+    }
+
+    // 🔥 Запрос биометрии
+    final authenticated = await auth.authenticate(
+      localizedReason: loc.biometricReason,
+      options: const AuthenticationOptions(
+        biometricOnly: true,
+        stickyAuth: true,
+      ),
     );
 
     if (authenticated) {
@@ -143,38 +253,36 @@ Future<void> biometricLogin() async {
     }
 
   } catch (e) {
-    showError("Biometric error");
+    showError(loc.biometricError);
   }
 }
 
   void showError(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.red,
-        content: Text(message),
-      ),
+      SnackBar(backgroundColor: Colors.red, content: Text(message)),
     );
   }
 
   void showSuccess(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.green,
-        content: Text(message),
-      ),
+      SnackBar(backgroundColor: Colors.green, content: Text(message)),
     );
   }
 
-  String getMessageFromError(String code) {
+  String getMessageFromError(String code, AppLocalizations loc) {
     switch (code) {
       case 'user-not-found':
-        return "User not found";
+        return loc.userNotFound;
       case 'wrong-password':
-        return "Wrong password";
+        return loc.wrongPassword;
       case 'invalid-email':
-        return "Invalid email";
+        return loc.invalidEmail;
       default:
-        return "Login failed";
+        return loc.loginFailed;
     }
   }
 
@@ -191,14 +299,8 @@ Future<void> biometricLogin() async {
   }
 
   @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -219,9 +321,9 @@ Future<void> biometricLogin() async {
 
               const SizedBox(height: 20),
 
-              const Text(
-                "Welcome back",
-                style: TextStyle(
+              Text(
+                loc.welcomeBack,
+                style: const TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
                 ),
@@ -229,19 +331,19 @@ Future<void> biometricLogin() async {
 
               const SizedBox(height: 8),
 
-              const Text(
-                "Sign in to access your records",
-                style: TextStyle(color: Colors.grey),
+              Text(
+                loc.signInSubtitle,
+                style: const TextStyle(color: Colors.grey),
               ),
 
               const SizedBox(height: 30),
 
               TextFormField(
                 controller: emailController,
-                decoration: fieldStyle("Email"),
+                decoration: fieldStyle(loc.email),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return "Email required";
-                  if (!v.contains("@")) return "Invalid email";
+                  if (v == null || v.isEmpty) return loc.emailRequired;
+                  if (!v.contains("@")) return loc.invalidEmail;
                   return null;
                 },
               ),
@@ -251,7 +353,7 @@ Future<void> biometricLogin() async {
               TextFormField(
                 controller: passwordController,
                 obscureText: isPasswordHidden,
-                decoration: fieldStyle("Password").copyWith(
+                decoration: fieldStyle(loc.password).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       isPasswordHidden
@@ -266,20 +368,45 @@ Future<void> biometricLogin() async {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return "Password required";
-                  if (v.length < 6) return "Min 6 characters";
+                  if (v == null || v.isEmpty) return loc.passwordRequired;
+                  if (v.length < 6) return loc.passwordMin;
                   return null;
                 },
               ),
 
               const SizedBox(height: 10),
 
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: resetPassword,
-                  child: const Text("Forgot password?"),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: resetPassword,
+                      child: Text(loc.forgotPassword),
+                    ),
+                  ),
+
+                  if (emailSent)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          loc.checkEmailSpam,
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+
+                        TextButton(
+                          onPressed: resendEmail,
+                          child: Text(loc.resendEmail),
+                        ),
+                      ],
+                    ),
+                ],
               ),
 
               const SizedBox(height: 20),
@@ -297,29 +424,44 @@ Future<void> biometricLogin() async {
                           ),
                         ),
                         onPressed: login,
-                        child: const Text(
-                          "Sign In",
-                          style: TextStyle(color: Colors.white),
+                        child: Text(
+                          loc.signIn,
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
 
               const SizedBox(height: 30),
 
-              const Center(child: Text("or")),
+              Center(child: Text(loc.or)),
 
               const SizedBox(height: 20),
 
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+              Center(
+                child: Column(
+                  children: [
+
+                    SizedBox(
+                      width: 250,
+                      child: OutlinedButton.icon(
+                        onPressed: biometricLogin,
+                        icon: const Icon(Icons.fingerprint),
+                        label: Text(loc.biometricLogin),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: 250,
+                      child: OutlinedButton.icon(
+                        onPressed: signInWithGoogle,
+                        icon: const Icon(Icons.login),
+                        label: const Text("Sign in with Google"),
+                      ),
+                    ),
+                  ],
                 ),
-                onPressed: biometricLogin,
-                icon: const Icon(Icons.fingerprint),
-                label: const Text("Sign in with Biometrics"),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medtrack/l10n/app_localizations.dart';
 import 'login_screen.dart';
 
 class SuccessScreen extends StatelessWidget {
@@ -6,6 +7,8 @@ class SuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.white,
 
@@ -26,9 +29,9 @@ class SuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              const Text(
-                "Account Created!",
-                style: TextStyle(
+              Text(
+                loc.accountCreatedTitle,
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
@@ -36,10 +39,10 @@ class SuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              const Text(
-                "Your account has been successfully created.",
+              Text(
+                loc.accountCreatedSubtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 16,
                 ),
@@ -66,9 +69,9 @@ class SuccessScreen extends StatelessWidget {
                       (route) => false,
                     );
                   },
-                  child: const Text(
-                    "Continue",
-                    style: TextStyle(fontSize: 16),
+                  child: Text(
+                    loc.continueText,
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
               ),
