@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:medtrack/l10n/app_localizations.dart';
 
-// 🔥 FIX: правильный фильтр (НЕ зависит от языка)
+
 enum FilterType { all, diagnosis, medication }
 
 class RecordsScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class RecordsScreen extends StatefulWidget {
 }
 
 class _RecordsScreenState extends State<RecordsScreen> {
-  // 🔥 FIX
+  
   FilterType selectedFilter = FilterType.all;
 
   @override
@@ -55,7 +55,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
 
-                // 🔥 FIX: правильная проверка loading
+                
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -68,7 +68,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
                   final data = doc.data() as Map<String, dynamic>;
                   final type = data['type'] ?? '';
 
-                  // 🔥 FIX: фильтр НЕ зависит от языка
+                  
                   if (selectedFilter == FilterType.all) return true;
                   if (selectedFilter == FilterType.diagnosis && type == "Diagnosis") return true;
                   if (selectedFilter == FilterType.medication && type == "Medication") return true;
@@ -140,7 +140,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
     );
   }
 
-  // 🔥 FIX: правильный chip
+  
   Widget _filterChip(String label, FilterType type) {
     return Padding(
       padding: const EdgeInsets.only(right: 6),

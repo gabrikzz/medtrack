@@ -122,7 +122,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  // 🔐 CHANGE PASSWORD
   void showChangePasswordDialog() {
     final loc = AppLocalizations.of(context)!;
 
@@ -184,13 +183,11 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  // 🚪 FIXED LOGOUT (IMPORTANT)
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
 
-    // 🔥 THIS LINE FIXES YOUR BUG
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MedTrackApp()),
       (route) => false,

@@ -55,10 +55,10 @@ class TestsScreen extends StatelessWidget {
 
               final data = docs[index].data() as Map<String, dynamic>;
 
-              // 🔥 FIX: безопасный timestamp
+              
               final ts = data['createdAt'] as Timestamp?;
               if (ts == null) {
-                return const SizedBox(); // не крашится
+                return const SizedBox();
               }
 
               final date = ts.toDate();
@@ -88,7 +88,7 @@ class TestsScreen extends StatelessWidget {
 
                     final uri = Uri.parse(url);
 
-                    // 🔥 FIX: безопасное открытие
+                   
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(
                         uri,

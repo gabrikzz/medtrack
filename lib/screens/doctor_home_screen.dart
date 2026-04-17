@@ -38,7 +38,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     });
   }
 
-  // 👨‍⚕️ LOAD DOCTOR
   Future<void> loadDoctorData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -59,7 +58,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         : _buildHome(loc);
   }
 
-  // 🔍 SEARCH PATIENT
   Future<void> searchPatient() async {
     final loc = AppLocalizations.of(context)!;
     final idnp = idnpController.text.trim();
@@ -99,7 +97,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     setState(() => loading = false);
   }
 
-  // 🔙 EXIT PATIENT MODE
   void exitPatientMode() {
     setState(() {
       patient = null;
@@ -109,7 +106,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     });
   }
 
-  // 📌 SAVE RECENT
   Future<void> saveToRecentPatients() async {
     final doctorId = FirebaseAuth.instance.currentUser?.uid;
     if (doctorId == null || patientId == null || patient == null) return;
@@ -128,7 +124,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     loadRecentPatients();
   }
 
-  // 📊 LOAD RECENT
   Future<void> loadRecentPatients() async {
     final doctorId = FirebaseAuth.instance.currentUser?.uid;
     if (doctorId == null) return;
@@ -170,7 +165,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     });
   }
 
-  // 📄 ATTACH DOCUMENT
   Future<void> attachDocument(String type) async {
     final loc = AppLocalizations.of(context)!;
 
@@ -202,7 +196,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     }
   }
 
-  // 💊 MEDICATION OPTIONS
   void showAddMedicationDialog() {
     final loc = AppLocalizations.of(context)!;
 
@@ -243,7 +236,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  // ✍️ MANUAL MEDICATION
   void _showManualMedicationSheet() {
     final loc = AppLocalizations.of(context)!;
 
@@ -325,7 +317,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  // 📎 FILE MEDICATION
   Future<void> _attachMedicationFile() async {
     final loc = AppLocalizations.of(context)!;
 
@@ -359,7 +350,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     }
   }
 
-  // UI (НЕ ТРОГАЛ)
   Widget _buildHome(AppLocalizations loc) {
     return SafeArea(
       child: Padding(

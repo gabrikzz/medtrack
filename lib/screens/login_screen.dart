@@ -169,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 🔥 UPDATED RESET PASSWORD
   Future<void> resetPassword() async {
     final loc = AppLocalizations.of(context)!;
 
@@ -194,7 +193,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 🔥 RESEND EMAIL
   Future<void> resendEmail() async {
     final loc = AppLocalizations.of(context)!;
 
@@ -214,7 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final loc = AppLocalizations.of(context)!;
 
   try {
-    // 🔥 Проверка устройства
     final canCheck = await auth.canCheckBiometrics;
     final isSupported = await auth.isDeviceSupported();
 
@@ -223,7 +220,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 🔥 Проверка есть ли методы (FaceID / Fingerprint)
     final availableBiometrics = await auth.getAvailableBiometrics();
 
     if (availableBiometrics.isEmpty) {
@@ -231,7 +227,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 🔥 Проверка есть ли пользователь
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -239,7 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 🔥 Запрос биометрии
     final authenticated = await auth.authenticate(
       localizedReason: loc.biometricReason,
       options: const AuthenticationOptions(

@@ -32,7 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool loading = false;
   bool isPasswordHidden = true;
 
-  // ================= REGISTER =================
+  
 
   Future<void> registerUser() async {
     final loc = AppLocalizations.of(context)!;
@@ -52,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // 📩 SEND EMAIL
+     
       await user.sendEmailVerification();
 
       final newUser = UserModel(
@@ -71,7 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await firestoreService.createUser(newUser);
 
-      // ❗ НЕ делаем signOut (это ломало verify)
+      
       _showVerifyDialog(user);
 
     } catch (e) {
@@ -81,7 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (mounted) setState(() => loading = false);
   }
 
-  // ================= VERIFY =================
+
 
   void _showVerifyDialog(User user) {
     final loc = AppLocalizations.of(context)!;
@@ -92,7 +92,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       builder: (_) => AlertDialog(
         title: Text(loc.verifyEmailTitle),
 
-        // 🔥 FIX: добавили spam текст
+     
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         actions: [
 
-          // 🔁 RESEND
+         
           TextButton(
             onPressed: () async {
               try {
@@ -123,7 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Text(loc.resend),
           ),
 
-          // 🔥 I VERIFIED (FIXED)
+         
           ElevatedButton(
             onPressed: () async {
               try {
@@ -148,7 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ================= HELPERS =================
+ 
 
   void showError(String message) {
     if (!mounted) return;

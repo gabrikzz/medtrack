@@ -19,7 +19,7 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             children: [
 
-              // 🔥 LANGUAGE BUTTON (TOP RIGHT)
+              
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
@@ -89,7 +89,7 @@ class WelcomeScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // 🔹 CREATE ACCOUNT
+              
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -158,7 +158,7 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  // 🔥 LANGUAGE DIALOG (GLOBAL CHANGE)
+ 
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,

@@ -57,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
-  // 🔥 ПАРСИНГ СТРОКИ "11/1/2002"
   DateTime? parseBirthDate(String? birthDate) {
     if (birthDate == null || birthDate.isEmpty) return null;
 
@@ -76,7 +75,6 @@ class HomeContent extends StatelessWidget {
     }
   }
 
-  // 🔥 РАСЧЁТ ВОЗРАСТА
   int calculateAge(DateTime birthDate) {
     final today = DateTime.now();
 
