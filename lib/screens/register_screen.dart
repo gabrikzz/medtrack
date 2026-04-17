@@ -32,8 +32,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool loading = false;
   bool isPasswordHidden = true;
 
-  
-
   Future<void> registerUser() async {
     final loc = AppLocalizations.of(context)!;
 
@@ -52,7 +50,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-     
       await user.sendEmailVerification();
 
       final newUser = UserModel(
@@ -71,7 +68,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await firestoreService.createUser(newUser);
 
-      
       _showVerifyDialog(user);
 
     } catch (e) {
@@ -81,8 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (mounted) setState(() => loading = false);
   }
 
-
-
+  // 🔥 FIXED VERIFY DIALOG
   void _showVerifyDialog(User user) {
     final loc = AppLocalizations.of(context)!;
 
@@ -91,8 +86,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text(loc.verifyEmailTitle),
-
-     
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,10 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ],
         ),
-
         actions: [
-
-         
           TextButton(
             onPressed: () async {
               try {
@@ -123,13 +113,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Text(loc.resend),
           ),
 
-         
+          // ✅ FIXED BUTTON
           ElevatedButton(
             onPressed: () async {
               try {
                 await user.reload();
 
-                if (user.emailVerified) {
+                final refreshedUser =
+                    FirebaseAuth.instance.currentUser;
+
+                if (refreshedUser != null &&
+                    refreshedUser.emailVerified) {
                   Navigator.of(context).pushNamedAndRemoveUntil(
                     '/login',
                     (route) => false,
@@ -138,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   showError(loc.emailNotVerified);
                 }
               } catch (e) {
-                showError(e.toString());
+                showError(loc.error);
               }
             },
             child: Text(loc.iVerified),
@@ -147,8 +141,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
- 
 
   void showError(String message) {
     if (!mounted) return;
@@ -221,21 +213,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-
       backgroundColor: Colors.white,
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-
           child: Form(
             key: _formKey,
-
             child: ListView(
               children: [
-
                 const SizedBox(height: 20),
-
                 Text(
                   loc.createAccount,
                   style: const TextStyle(
@@ -243,14 +229,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
                   loc.signUpSubtitle,
                   style: const TextStyle(color: Colors.grey),
                 ),
-
                 const SizedBox(height: 30),
 
                 TextFormField(
