@@ -57,12 +57,44 @@ class _HomeScreenState extends State<HomeScreen> {
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
+  // 🔥 ПАРСИНГ СТРОКИ "11/1/2002"
+  DateTime? parseBirthDate(String? birthDate) {
+    if (birthDate == null || birthDate.isEmpty) return null;
+
+    try {
+      final parts = birthDate.split("/"); // [day, month, year]
+
+      if (parts.length != 3) return null;
+
+      final day = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final year = int.parse(parts[2]);
+
+      return DateTime(year, month, day);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 🔥 РАСЧЁТ ВОЗРАСТА
+  int calculateAge(DateTime birthDate) {
+    final today = DateTime.now();
+
+    int age = today.year - birthDate.year;
+
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+
+    return age;
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final user = FirebaseAuth.instance.currentUser;
 
-    // 🔥 FIX: защита если user == null
     if (user == null) {
       return Center(child: Text(loc.notLoggedIn));
     }
@@ -84,6 +116,20 @@ class HomeContent extends StatelessWidget {
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
           String name = data['fullName'] ?? loc.user;
+
+          // 🔥 ВЫЧИСЛЯЕМ ВОЗРАСТ
+          String ageText = "-";
+
+          final birthDateString = data['birthDate'];
+
+          if (birthDateString != null) {
+            final birthDate = parseBirthDate(birthDateString);
+
+            if (birthDate != null) {
+              final age = calculateAge(birthDate);
+              ageText = age.toString();
+            }
+          }
 
           return Padding(
             padding: const EdgeInsets.all(20),
@@ -120,7 +166,7 @@ class HomeContent extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _info(loc.age, data['age']?.toString() ?? "-"),
+                          _info(loc.age, ageText), // ✅ теперь считается автоматически
                           _info(loc.blood, data['bloodType'] ?? "-"),
                           _info(loc.idnp, data['idnp'] ?? "-"),
                         ],
@@ -186,11 +232,8 @@ class HomeContent extends StatelessWidget {
 
                           final data = docs[index].data() as Map<String, dynamic>;
 
-                          // 🔥 FIX: безопасный timestamp
                           final ts = data['createdAt'] as Timestamp?;
-                          if (ts == null) {
-                            return const SizedBox();
-                          }
+                          if (ts == null) return const SizedBox();
 
                           final date = ts.toDate();
                           final type = data['type'] ?? "";
@@ -204,9 +247,7 @@ class HomeContent extends StatelessWidget {
                             child: ListTile(
                               leading: Icon(_getIcon(type)),
                               title: Text(_getTitle(type, loc)),
-                              subtitle: Text(
-                                "${date.day}.${date.month}.${date.year}",
-                              ),
+                              subtitle: Text("${date.day}.${date.month}.${date.year}"),
                             ),
                           );
                         },
