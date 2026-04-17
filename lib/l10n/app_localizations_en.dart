@@ -117,7 +117,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tests => 'Tests';
 
   @override
-  String get goodMorning => 'Good morning';
+  String get healthGlance => 'Your health, at a glance';
 
   @override
   String get patient => 'PATIENT';
@@ -417,4 +417,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginFirst => 'Please log in first';
+
+  @override
+  String get appointments => 'Appointments';
+
+  @override
+  String get appointmentsTitle => 'Clinics & Hospitals';
+
+  @override
+  String get searchClinic => 'Search clinic...';
+
+  @override
+  String get noClinics => 'No clinics found';
 }

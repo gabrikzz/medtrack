@@ -6,6 +6,7 @@ import 'package:medtrack/l10n/app_localizations.dart';
 import 'records_screen.dart';
 import 'tests_screen.dart';
 import 'profile_screen.dart';
+import 'appointments_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final screens = [
       const HomeContent(),
+      const AppointmentsScreen(),
       const RecordsScreen(),
       const TestsScreen(),
       const ProfileScreen(),
@@ -45,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
         unselectedItemColor: Colors.grey,
         items: [
           BottomNavigationBarItem(icon: const Icon(Icons.home_rounded), label: loc.home),
+          BottomNavigationBarItem(icon: Icon(Icons.local_hospital), label: loc.appointments),
           BottomNavigationBarItem(icon: const Icon(Icons.description_outlined), label: loc.records),
           BottomNavigationBarItem(icon: const Icon(Icons.science_outlined), label: loc.tests),
           BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: loc.profile),
@@ -115,7 +118,6 @@ class HomeContent extends StatelessWidget {
           final data = snapshot.data!.data() as Map<String, dynamic>;
           String name = data['fullName'] ?? loc.user;
 
-          // 🔥 ВЫЧИСЛЯЕМ ВОЗРАСТ
           String ageText = "-";
 
           final birthDateString = data['birthDate'];
@@ -135,7 +137,7 @@ class HomeContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                Text(loc.goodMorning, style: TextStyle(color: Colors.grey[600])),
+                Text(loc.healthGlance, style: TextStyle(color: Colors.grey[600])),
                 const SizedBox(height: 4),
 
                 Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
@@ -164,7 +166,7 @@ class HomeContent extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _info(loc.age, ageText), // ✅ теперь считается автоматически
+                          _info(loc.age, ageText),
                           _info(loc.blood, data['bloodType'] ?? "-"),
                           _info(loc.idnp, data['idnp'] ?? "-"),
                         ],

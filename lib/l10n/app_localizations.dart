@@ -313,11 +313,11 @@ abstract class AppLocalizations {
   /// **'Tests'**
   String get tests;
 
-  /// No description provided for @goodMorning.
+  /// No description provided for @healthGlance.
   ///
   /// In en, this message translates to:
-  /// **'Good morning'**
-  String get goodMorning;
+  /// **'Your health, at a glance'**
+  String get healthGlance;
 
   /// No description provided for @patient.
   ///
@@ -912,6 +912,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please log in first'**
   String get loginFirst;
+
+  /// No description provided for @appointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments'**
+  String get appointments;
+
+  /// No description provided for @appointmentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinics & Hospitals'**
+  String get appointmentsTitle;
+
+  /// No description provided for @searchClinic.
+  ///
+  /// In en, this message translates to:
+  /// **'Search clinic...'**
+  String get searchClinic;
+
+  /// No description provided for @noClinics.
+  ///
+  /// In en, this message translates to:
+  /// **'No clinics found'**
+  String get noClinics;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

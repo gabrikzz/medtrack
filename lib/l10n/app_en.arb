@@ -35,7 +35,7 @@
   "or": "or",
   "home": "Home",
   "tests": "Tests",
-  "goodMorning": "Good morning",
+  "healthGlance": "Your health, at a glance",
   "patient": "PATIENT",
   "age": "AGE",
   "blood": "BLOOD",
@@ -153,7 +153,11 @@
   "activityTest": "New test result added",
   "activityMedication": "New medication added",
   "activityFile": "New file added",
-  "loginFirst": "Please log in first"
+  "loginFirst": "Please log in first",
+  "appointments": "Appointments",
+  "appointmentsTitle": "Clinics & Hospitals",
+  "searchClinic": "Search clinic...",
+  "noClinics": "No clinics found"
 }
 
 

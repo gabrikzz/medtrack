@@ -117,7 +117,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tests => 'Анализы';
 
   @override
-  String get goodMorning => 'Доброе день';
+  String get healthGlance => 'Ваше здоровье с первого взгляда';
 
   @override
   String get patient => 'ПАЦИЕНТ';
@@ -417,4 +417,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get loginFirst => 'Сначала войдите в аккаунт';
+
+  @override
+  String get appointments => 'Записи';
+
+  @override
+  String get appointmentsTitle => 'Клиники и больницы';
+
+  @override
+  String get searchClinic => 'Поиск клиники...';
+
+  @override
+  String get noClinics => 'Клиники не найдены';
 }

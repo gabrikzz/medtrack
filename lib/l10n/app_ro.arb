@@ -35,7 +35,7 @@
   "or": "sau",
   "home": "Acasă",
   "tests": "Analize",
-  "goodMorning": "Bună ziua",
+  "healthGlance": "Sănătatea ta, dintr-o privire",
   "patient": "PACIENT",
   "age": "VÂRSTĂ",
   "blood": "GRUPA DE SÂNGE",
@@ -153,6 +153,10 @@
   "activityTest": "Rezultat analiză nou",
   "activityMedication": "Medicament nou adăugat",
   "activityFile": "Fișier nou adăugat",
-  "loginFirst": "Autentifică-te mai întâi"
+  "loginFirst": "Autentifică-te mai întâi",
+  "appointments": "Programări",
+  "appointmentsTitle": "Clinici și spitale",
+  "searchClinic": "Caută clinică...",
+  "noClinics": "Nu există clinici"
 }
 
