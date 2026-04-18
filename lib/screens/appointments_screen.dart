@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:medtrack/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart'; // 👈 NEW
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -14,6 +15,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   String userCity = "";
   String searchQuery = "";
+  bool loadingCity = true;
 
   @override
   void initState() {
@@ -30,9 +32,28 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         .doc(user.uid)
         .get();
 
+    if (!mounted) return;
+
     setState(() {
-      userCity = doc.data()?['location'] ?? "";
+      userCity = (doc.data()?['location'] ?? "")
+          .toString()
+          .toLowerCase()
+          .trim();
+      loadingCity = false;
     });
+  }
+
+  
+  Future<void> callClinic(String phone) async {
+    final Uri phoneUri = Uri.parse("tel:$phone");
+
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cannot open phone app")),
+      );
+    }
   }
 
   @override
@@ -46,7 +67,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // 🔥 HEADER (как в HomeScreen)
             Text(
               loc.appointmentsTitle,
               style: const TextStyle(
@@ -58,13 +78,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             const SizedBox(height: 8),
 
             Text(
-              userCity.isEmpty ? "" : userCity,
+              userCity,
               style: TextStyle(color: Colors.grey[600]),
             ),
 
             const SizedBox(height: 20),
 
-            // 🔍 SEARCH BAR
+            
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -79,7 +99,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
                 onChanged: (value) {
                   setState(() {
-                    searchQuery = value.toLowerCase();
+                    searchQuery = value.toLowerCase().trim();
                   });
                 },
               ),
@@ -87,49 +107,60 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
             const SizedBox(height: 20),
 
-            // 🏥 LIST
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('clinics')
-                    .where('city', isEqualTo: userCity)
-                    .snapshots(),
-                builder: (context, snapshot) {
+              child: loadingCity
+                  ? const Center(child: CircularProgressIndicator())
+                  : StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('clinics')
+                          .snapshots(),
+                      builder: (context, snapshot) {
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                        if (!snapshot.hasData) {
+                          return Center(child: Text(loc.noClinics));
+                        }
 
-                  if (!snapshot.hasData) {
-                    return Center(child: Text(loc.noClinics));
-                  }
+                        final clinics = snapshot.data!.docs.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
 
-                  final clinics = snapshot.data!.docs.where((doc) {
-                    final name = doc['name']
-                        .toString()
-                        .toLowerCase();
-                    return name.contains(searchQuery);
-                  }).toList();
+                          final name = (data['name'] ?? "")
+                              .toString()
+                              .toLowerCase()
+                              .trim();
 
-                  if (clinics.isEmpty) {
-                    return Center(child: Text(loc.noClinics));
-                  }
+                          final city = (data['city'] ?? "")
+                              .toString()
+                              .toLowerCase()
+                              .trim();
 
-                  return ListView.builder(
-                    itemCount: clinics.length,
-                    itemBuilder: (context, index) {
+                          final matchesSearch =
+                              searchQuery.isEmpty || name.contains(searchQuery);
 
-                      final data = clinics[index];
+                          final matchesCity =
+                              userCity.isEmpty || city.contains(userCity);
 
-                      return _clinicCard(
-                        name: data['name'],
-                        address: data['address'],
-                        phone: data['phone'],
-                      );
-                    },
-                  );
-                },
-              ),
+                          return matchesSearch && matchesCity;
+                        }).toList();
+
+                        if (clinics.isEmpty) {
+                          return Center(child: Text(loc.noClinics));
+                        }
+
+                        return ListView.builder(
+                          itemCount: clinics.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                clinics[index].data() as Map<String, dynamic>;
+
+                            return _clinicCard(
+                              name: data['name'] ?? "",
+                              address: data['address'] ?? data['adress'] ?? "",
+                              phone: data['phone'] ?? "",
+                            );
+                          },
+                        );
+                      },
+                    ),
             )
           ],
         ),
@@ -137,68 +168,67 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
-  // 🎨 КРАСИВАЯ КАРТОЧКА (как в приложении)
   Widget _clinicCard({
     required String name,
     required String address,
     required String phone,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
+    return GestureDetector(
+      onTap: () => callClinic(phone),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
 
-          // ICON
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.teal.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.teal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.local_hospital, color: Colors.teal),
             ),
-            child: const Icon(Icons.local_hospital, color: Colors.teal),
-          ),
 
-          const SizedBox(width: 14),
+            const SizedBox(width: 14),
 
-          // INFO
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                Text(
-                  address,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
+                  Text(
+                    address,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
 
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                Text(
-                  phone,
-                  style: const TextStyle(color: Colors.teal),
-                ),
-              ],
+                  Text(
+                    phone,
+                    style: const TextStyle(color: Colors.teal),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // ARROW
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-        ],
+            const Icon(Icons.phone, color: Colors.teal),
+          ],
+        ),
       ),
     );
   }
